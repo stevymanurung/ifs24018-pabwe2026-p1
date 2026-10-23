@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    image: study-planner:latest
+    container_name: study-planner
+    ports:
+      - "3001:3001"
+    environment:
+      SEED_DEMO: "true" # isi data contoh jika database masih kosong; hapus baris ini untuk database kosong
+    volumes:
+      - planner-data:/data
+    restart: unless-stopped
+
+volumes:
+  planner-data:

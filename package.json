@@ -1,0 +1,22 @@
+{
+  "name": "ifs24018-pabwe2026-p1",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Study Planner - Proyek 1 PABWE 2026 (React + Express.js + SQLite)",
+  "scripts": {
+    "setup": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -k -n API,WEB -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start",
+    "start:prod": "npm run build && npm start",
+    "seed": "npm --prefix server run seed",
+    "lint": "npm --prefix client run lint",
+    "test": "npm --prefix server test && npm --prefix client test",
+    "test:ci": "npm --prefix server run test:ci && npm --prefix client run test:ci",
+    "test:v1": "npm --prefix server run test:v1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "license": "MIT"
+}
