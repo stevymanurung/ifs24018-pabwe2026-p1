@@ -1,0 +1,24 @@
+{
+  "name": "study-planner-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "REST API Study Planner (Express.js + SQLite)",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/db/seed.js",
+    "test": "node --test",
+    "test:ci": "node --test --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=reports/junit.xml",
+    "test:v1": "node --test evidence/run-v1-api.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "zod": "^3.24.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

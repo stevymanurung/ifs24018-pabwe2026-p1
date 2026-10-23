@@ -1,0 +1,123 @@
+// VERSI 1 - DRAF AWAL BACK-END DARI AI (disimpan apa adanya sebagai bukti proses).
+// Satu berkas, semua tanggung jawab bercampur. Lihat laporan Bab "Identifikasi Kesalahan".
+import express from 'express';
+
+const toSession = (r) => ({ id: r.id, course: r.course, day: r.day, start: r.start_time, end: r.end_time, room: r.room });
+const toTask = (r) => ({ id: r.id, title: r.title, course: r.course, dueDate: r.due_date, remindAt: r.remind_at, done: r.done === 1 });
+const toAlarm = (r) => ({ id: r.id, label: r.label, time: r.time, days: r.days.split(',').map(Number), enabled: r.enabled === 1 });
+
+export function createApp({ db }) {
+  const app = express();
+  app.use(express.json());
+
+  app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+  // ---------- sessions ----------
+  app.get('/api/sessions', (req, res) => {
+    res.json(db.prepare('SELECT * FROM sessions ORDER BY day, start_time').all().map(toSession));
+  });
+  app.post('/api/sessions', (req, res) => {
+    const { course, day, start, end, room } = req.body;
+    if (end <= start) return res.status(400).json({ error: 'Jam selesai harus setelah jam mulai' });
+    const sameDay = db.prepare('SELECT * FROM sessions WHERE day = ' + day).all();
+    const clash = sameDay.find((x) => x.start_time <= end && start <= x.end_time);
+    if (clash) return res.status(400).json({ error: 'Bentrok dengan ' + clash.course });
+    db.exec(`INSERT INTO sessions (course, day, start_time, end_time, room) VALUES ('${course}', ${day}, '${start}', '${end}', '${room || ''}')`);
+    const row = db.prepare('SELECT * FROM sessions ORDER BY id DESC LIMIT 1').get();
+    res.status(201).json(toSession(row));
+  });
+  app.delete('/api/sessions/:id', (req, res) => {
+    db.exec(`DELETE FROM sessions WHERE id = ${req.params.id}`);
+    res.sendStatus(204);
+  });
+
+  // ---------- tasks ----------
+  app.get('/api/tasks', (req, res) => {
+    res.json(db.prepare('SELECT * FROM tasks').all().map(toTask));
+  });
+  app.post('/api/tasks', (req, res) => {
+    const { title, course, dueDate, remindAt } = req.body;
+    db.exec(`INSERT INTO tasks (title, course, due_date, remind_at) VALUES ('${title}', '${course || ''}', '${dueDate || ''}', '${remindAt || ''}')`);
+    const row = db.prepare('SELECT * FROM tasks ORDER BY id DESC LIMIT 1').get();
+    res.status(201).json(toTask(row));
+  });
+  app.patch('/api/tasks/:id', (req, res) => {
+    db.exec(`UPDATE tasks SET done = ${req.body.done ? 1 : 0} WHERE id = ${req.params.id}`);
+    res.json(toTask(db.prepare('SELECT * FROM tasks WHERE id = ' + req.params.id).get()));
+  });
+  app.delete('/api/tasks/:id', (req, res) => {
+    db.exec(`DELETE FROM tasks WHERE id = ${req.params.id}`);
+    res.sendStatus(204);
+  });
+
+  // ---------- alarms ----------
+  app.get('/api/alarms', (req, res) => {
+    res.json(db.prepare('SELECT * FROM alarms').all().map(toAlarm));
+  });
+  app.post('/api/alarms', (req, res) => {
+    const { label, time, days } = req.body;
+    db.exec(`INSERT INTO alarms (label, time, days) VALUES ('${label}', '${time}', '${days.join(',')}')`);
+    res.status(201).json(toAlarm(db.prepare('SELECT * FROM alarms ORDER BY id DESC LIMIT 1').get()));
+  });
+  app.patch('/api/alarms/:id', (req, res) => {
+    db.exec(`UPDATE alarms SET enabled = ${req.body.enabled ? 1 : 0} WHERE id = ${req.params.id}`);
+    res.json(toAlarm(db.prepare('SELECT * FROM alarms WHERE id = ' + req.params.id).get()));
+  });
+  app.delete('/api/alarms/:id', (req, res) => {
+    db.exec(`DELETE FROM alarms WHERE id = ${req.params.id}`);
+    res.sendStatus(204);
+  });
+
+  // ---------- settings ----------
+  app.get('/api/settings', (req, res) => {
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'reminderLead'").get();
+    res.json({ reminderLead: row ? Number(row.value) : 10 });
+  });
+  app.put('/api/settings', (req, res) => {
+    db.exec(`INSERT OR REPLACE INTO settings (key, value) VALUES ('reminderLead', '${req.body.reminderLead}')`);
+    res.json({ reminderLead: Number(req.body.reminderLead) });
+  });
+
+  // ---------- dashboard ----------
+  app.get('/api/dashboard', (req, res) => {
+    const now = req.query.now ? new Date(req.query.now) : new Date();
+    const sessions = db.prepare('SELECT * FROM sessions').all().map(toSession);
+    const tasks = db.prepare('SELECT * FROM tasks').all().map(toTask);
+    const names = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+    const hours = [0, 0, 0, 0, 0, 0, 0];
+    sessions.forEach((s) => { hours[s.day] += Number(s.end.slice(0, 2)) - Number(s.start.slice(0, 2)); });
+
+    let done = 0, active = 0, overdue = 0;
+    tasks.forEach((t) => {
+      if (t.done) done++;
+      else if (t.dueDate && new Date(t.dueDate) < now) overdue++;
+      else active++;
+    });
+
+    const byCourse = {};
+    tasks.forEach((t) => {
+      byCourse[t.course] = byCourse[t.course] || { course: t.course, done: 0, pending: 0 };
+      if (t.done) byCourse[t.course].done++; else byCourse[t.course].pending++;
+    });
+
+    const today = now.getDay();
+    res.json({
+      date: req.query.now,
+      totals: { pending: active + overdue, done, overdue, weeklyHours: hours.reduce((a, b) => a + b, 0) },
+      hoursPerDay: names.map((name, day) => ({ day, name, hours: hours[day] })),
+      taskStatus: [
+        { key: 'done', label: 'Selesai', value: done },
+        { key: 'active', label: 'Aktif', value: active },
+        { key: 'overdue', label: 'Terlambat', value: overdue },
+      ],
+      tasksPerCourse: Object.values(byCourse),
+      today: { dayIndex: today, dayName: names[today], sessions: sessions.filter((s) => s.day === today) },
+      upcomingTasks: tasks.filter((t) => !t.done && t.dueDate && new Date(t.dueDate) >= now),
+      nextSession: sessions.filter((s) => s.day === today)[0]
+        ? { session: sessions.filter((s) => s.day === today)[0], daysAhead: 0 } : null,
+    });
+  });
+
+  return app;
+}
