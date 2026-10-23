@@ -8,26 +8,26 @@ const toTask = (row) => ({
 });
 
 export function createTaskRepository(db) {
-  const selectAll = db.prepare('SELECT * FROM tasks ORDER BY done, CASE WHEN due_date = \'\' THEN 1 ELSE 0 END, due_date, id');
-  const selectById = db.prepare('SELECT * FROM tasks WHERE id = ?');
-  const insert = db.prepare('INSERT INTO tasks (title, course, due_date, remind_at) VALUES (@title, @course, @dueDate, @remindAt)');
-  const updateDone = db.prepare('UPDATE tasks SET done = ? WHERE id = ?');
-  const deleteById = db.prepare('DELETE FROM tasks WHERE id = ?');
+  const selectAll = db.prepare('SELECT * FROM tasks WHERE user_id = ? ORDER BY done, CASE WHEN due_date = \'\' THEN 1 ELSE 0 END, due_date, id');
+  const selectById = db.prepare('SELECT * FROM tasks WHERE id = ? AND user_id = ?');
+  const insert = db.prepare('INSERT INTO tasks (user_id, title, course, due_date, remind_at) VALUES (@userId, @title, @course, @dueDate, @remindAt)');
+  const updateDone = db.prepare('UPDATE tasks SET done = ? WHERE id = ? AND user_id = ?');
+  const deleteById = db.prepare('DELETE FROM tasks WHERE id = ? AND user_id = ?');
 
   return {
-    findAll: () => selectAll.all().map(toTask),
-    findById: (id) => {
-      const row = selectById.get(id);
+    findAll: (userId = 1) => selectAll.all(userId).map(toTask),
+    findById: (id, userId = 1) => {
+      const row = selectById.get(id, userId);
       return row ? toTask(row) : null;
     },
-    create(task) {
-      const { lastInsertRowid } = insert.run(task);
-      return toTask(selectById.get(lastInsertRowid));
+    create(task, userId = 1) {
+      const { lastInsertRowid } = insert.run({ ...task, userId });
+      return toTask(selectById.get(lastInsertRowid, userId));
     },
-    setDone(id, done) {
-      if (updateDone.run(done ? 1 : 0, id).changes === 0) return null;
-      return toTask(selectById.get(id));
+    setDone(id, done, userId = 1) {
+      if (updateDone.run(done ? 1 : 0, id, userId).changes === 0) return null;
+      return toTask(selectById.get(id, userId));
     },
-    remove: (id) => deleteById.run(id).changes > 0,
+    remove: (id, userId = 1) => deleteById.run(id, userId).changes > 0,
   };
 }

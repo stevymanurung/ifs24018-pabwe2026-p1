@@ -21,7 +21,7 @@ export function createHttpClient({ baseUrl, fetchImpl = (...args) => fetch(...ar
     try {
       response = await fetchImpl(`${baseUrl}${path}`, {
         method,
-        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(globalThis.localStorage?.getItem('study-planner-token') ? { Authorization: `Bearer ${globalThis.localStorage.getItem('study-planner-token')}` } : {}) },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal,
       });

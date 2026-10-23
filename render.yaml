@@ -1,0 +1,25 @@
+# Blueprint Render: Express + SQLite dengan penyimpanan persisten.
+# Disk /data memerlukan paket Render yang mendukung Persistent Disk.
+services:
+  - type: web
+    name: ifs24018-study-planner
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    plan: starter
+    disk:
+      name: study-planner-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DB_FILE
+        value: /data/planner.db
+      - key: CLIENT_DIST
+        value: /app/client/dist
+      - key: SEED_DEMO
+        value: "false"

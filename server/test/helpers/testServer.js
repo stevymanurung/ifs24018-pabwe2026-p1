@@ -29,6 +29,7 @@ export async function startTestServer() {
 
   return {
     request,
+    base,
     close: () => new Promise((resolve) => server.close(() => { db.close(); resolve(); })),
   };
 }

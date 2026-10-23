@@ -28,7 +28,7 @@ Prasyarat: **Node.js 20 atau lebih baru** (disarankan 22) dan Git.
 ```bash
 git clone https://github.com/<username>/ifs24018-pabwe2026-p1.git
 cd ifs24018-pabwe2026-p1
-npm run setup        # memasang dependensi root, server, dan client
+npm run setup        # memasang dependensi sesuai lockfile (root, server, client)
 npm run seed         # (opsional) mengisi data contoh
 npm run dev          # API: http://localhost:3001  |  Web: http://localhost:5173
 ```
@@ -39,7 +39,7 @@ Mode produksi (satu URL, Express menyajikan hasil build React):
 npm run start:prod   # build front-end lalu jalankan server di http://localhost:3001
 ```
 
-Docker: `docker compose up -d --build` lalu buka http://localhost:3001.
+Docker: `docker compose up -d --build` lalu buka http://localhost:3001. Untuk menghentikan: `docker compose down`.
 
 ## Skrip
 
@@ -50,7 +50,7 @@ Docker: `docker compose up -d --build` lalu buka http://localhost:3001.
 | `npm test` | Seluruh tes server dan client |
 | `npm run lint` | ESLint untuk client |
 | `npm run test:ci` | Tes dengan laporan JUnit (dipakai Jenkins) |
-| `npm run test:v1` | Tes API yang sama terhadap draf awal AI (bukti proses; sengaja gagal) |
+| `npm run test:v1` | Tes pembanding terhadap draf awal AI (bukti proses; memang menunjukkan kegagalan draf awal) |
 
 Konfigurasi server lewat environment variable: lihat `server/.env.example`.
 
@@ -90,3 +90,10 @@ Daftar endpoint: [docs/api.md](docs/api.md). Deployment, Jenkins, dan URL online
   membocorkan stack trace, query SQL berparameter (aman dari SQL injection), Helmet, batas ukuran body, React Error Boundary,
   code splitting, aksesibilitas (label, `aria-*`, `<dialog>`), dan penutupan server yang rapi.
 - **Teruji**: lihat `npm test`; bug nyata yang ditemukan dan diperbaiki selama pengembangan tercatat di riwayat commit.
+
+
+## Akun pengguna
+
+Pada kunjungan pertama, pilih **Daftar sekarang** untuk membuat akun. Gunakan email yang valid dan password minimal 8 karakter. Setelah berhasil daftar, aplikasi otomatis login. Akun berikutnya menggunakan halaman Login. Setiap akun memiliki jadwal, tugas, alarm, dan pengaturan sendiri.
+
+API autentikasi tersedia di `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, dan `/api/auth/logout`. Password disimpan sebagai hash `scrypt`, sedangkan token sesi disimpan sebagai hash di SQLite.

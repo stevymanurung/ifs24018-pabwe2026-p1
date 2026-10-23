@@ -17,7 +17,7 @@ export function createApp({ db, logger = defaultLogger, clientDist = config.clie
   app.use(cors(config.corsOrigin));
   app.use(express.json({ limit: '10kb' }));
 
-  app.use('/api', createApiRouter(createContainer(db)));
+  app.use('/api', createApiRouter(createContainer(db), db));
   app.use('/api', apiNotFound);
 
   // Produksi: Express juga menyajikan hasil build front-end (satu URL untuk seluruh aplikasi).

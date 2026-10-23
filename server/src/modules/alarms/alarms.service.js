@@ -2,17 +2,17 @@ import { notFound } from '../../utils/httpError.js';
 
 export function createAlarmService({ alarmRepository }) {
   return {
-    list: () => alarmRepository.findAll(),
-    create: (input) => alarmRepository.create(input),
+    list: (userId = 1) => alarmRepository.findAll(userId),
+    create: (input, userId = 1) => alarmRepository.create(input, userId),
 
-    setEnabled(id, enabled) {
-      const alarm = alarmRepository.setEnabled(id, enabled);
+    setEnabled(id, enabled, userId = 1) {
+      const alarm = alarmRepository.setEnabled(id, enabled, userId);
       if (!alarm) throw notFound('Alarm tidak ditemukan');
       return alarm;
     },
 
-    remove(id) {
-      if (!alarmRepository.remove(id)) throw notFound('Alarm tidak ditemukan');
+    remove(id, userId = 1) {
+      if (!alarmRepository.remove(id, userId)) throw notFound('Alarm tidak ditemukan');
     },
   };
 }

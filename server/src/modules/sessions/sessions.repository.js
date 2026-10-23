@@ -2,21 +2,21 @@ const toSession = (row) => ({ id: row.id, course: row.course, day: row.day, star
 
 /** Akses data sesi. Seluruh query memakai parameter terikat (?) sehingga aman dari SQL injection. */
 export function createSessionRepository(db) {
-  const selectAll = db.prepare('SELECT * FROM sessions ORDER BY day, start_time, id');
-  const selectById = db.prepare('SELECT * FROM sessions WHERE id = ?');
-  const insert = db.prepare('INSERT INTO sessions (course, day, start_time, end_time, room) VALUES (@course, @day, @start, @end, @room)');
-  const deleteById = db.prepare('DELETE FROM sessions WHERE id = ?');
+  const selectAll = db.prepare('SELECT * FROM sessions WHERE user_id = ? ORDER BY day, start_time, id');
+  const selectById = db.prepare('SELECT * FROM sessions WHERE id = ? AND user_id = ?');
+  const insert = db.prepare('INSERT INTO sessions (user_id, course, day, start_time, end_time, room) VALUES (@userId, @course, @day, @start, @end, @room)');
+  const deleteById = db.prepare('DELETE FROM sessions WHERE id = ? AND user_id = ?');
 
   return {
-    findAll: () => selectAll.all().map(toSession),
-    findById: (id) => {
-      const row = selectById.get(id);
+    findAll: (userId = 1) => selectAll.all(userId).map(toSession),
+    findById: (id, userId = 1) => {
+      const row = selectById.get(id, userId);
       return row ? toSession(row) : null;
     },
-    create(session) {
-      const { lastInsertRowid } = insert.run(session);
-      return toSession(selectById.get(lastInsertRowid));
+    create(session, userId = 1) {
+      const { lastInsertRowid } = insert.run({ ...session, userId });
+      return toSession(selectById.get(lastInsertRowid, userId));
     },
-    remove: (id) => deleteById.run(id).changes > 0,
+    remove: (id, userId = 1) => deleteById.run(id, userId).changes > 0,
   };
 }

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Study Planner - Proyek 1 PABWE 2026 (React + Express.js + SQLite)",
   "scripts": {
-    "setup": "npm install && npm --prefix server install && npm --prefix client install",
+    "setup": "npm ci && npm --prefix server ci && npm --prefix client ci",
     "dev": "concurrently -k -n API,WEB -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix client run build",
     "start": "npm --prefix server start",

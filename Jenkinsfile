@@ -31,7 +31,7 @@ pipeline {
 
     stage('Test') {
       steps {
-        sh 'mkdir -p server/reports'
+        sh 'mkdir -p server/reports client/reports'
         sh 'npm --prefix server run test:ci'
         sh 'npm --prefix client run test:ci'
       }

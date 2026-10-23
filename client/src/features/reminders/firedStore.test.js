@@ -31,4 +31,9 @@ describe('firedStore', () => {
     const full = { getItem: () => null, setItem: () => { throw new Error('quota'); } };
     expect(() => saveReminderState({ fired: {}, snoozes: [] }, full)).not.toThrow();
   });
+
+  it('penyimpanan yang melempar saat membaca tidak membuat aplikasi crash', () => {
+    const blocked = { getItem: () => { throw new Error('storage blocked'); }, setItem: () => {} };
+    expect(loadReminderState(blocked)).toEqual(empty);
+  });
 });

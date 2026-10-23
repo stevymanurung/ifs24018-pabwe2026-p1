@@ -53,3 +53,8 @@ Platform lain yang mendukung Docker dan volume (Railway, Fly.io) memakai langkah
 - [ ] Hasil pengujian deployment Jenkins
 - [ ] URL aplikasi online
 - [ ] URL video YouTube
+
+
+## Login dan akun
+
+Aplikasi menampilkan halaman Login/Daftar sebelum membuka dashboard. Buat akun baru lewat tombol **Daftar sekarang**. Data akun dan token sesi disimpan di SQLite; password tidak disimpan sebagai teks biasa. Pastikan variabel `DB_FILE=/data/planner.db` dan Persistent Disk tetap terpasang di `/data` pada hosting Docker.
