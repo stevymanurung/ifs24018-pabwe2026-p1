@@ -26,10 +26,15 @@ pipeline {
 
                 sh '''
                     set -eu
+
                     echo "=== Repository Checkout ==="
                     pwd
-                    git rev-parse --short HEAD
-                    echo "=== Checkout Completed ==="
+
+                    echo "=== Checking Project Files ==="
+                    test -f package.json
+                    test -f package-lock.json
+
+                    echo "=== Checkout Completed Successfully ==="
                 '''
             }
         }
@@ -53,34 +58,22 @@ pipeline {
                     node --version
                     npm --version
 
-                    echo "=== Check Root Lockfile ==="
-                    test -f package.json
-                    test -f package-lock.json
-
                     echo "=== Install Root Dependencies ==="
                     npm ci
 
                     echo "=== Install Server Dependencies ==="
                     if [ -f server/package.json ]; then
-                        if [ -f server/package-lock.json ]; then
-                            npm --prefix server ci
-                        else
-                            echo "ERROR: server/package-lock.json not found"
-                            exit 1
-                        fi
+                        test -f server/package-lock.json
+                        npm --prefix server ci
                     fi
 
                     echo "=== Install Client Dependencies ==="
                     if [ -f client/package.json ]; then
-                        if [ -f client/package-lock.json ]; then
-                            npm --prefix client ci
-                        else
-                            echo "ERROR: client/package-lock.json not found"
-                            exit 1
-                        fi
+                        test -f client/package-lock.json
+                        npm --prefix client ci
                     fi
 
-                    echo "=== Verify Vitest ==="
+                    echo "=== Verify Local Vitest ==="
                     npm exec -- vitest --version
 
                     echo "=== Verify Coverage Provider ==="
@@ -109,23 +102,23 @@ pipeline {
                     echo "=== Node Version ==="
                     node --version
 
-                    echo "=== Verify Local Vitest ==="
+                    echo "=== Verify Vitest ==="
                     npm exec -- vitest --version
 
                     echo "=== Verify Coverage Provider ==="
                     node -e "console.log(require.resolve('@vitest/coverage-v8/package.json'))"
 
-                    echo "=== Running Root Tests with Coverage ==="
+                    echo "=== Run Root Tests with Coverage ==="
                     npm exec -- vitest run --coverage
 
                     echo "=== Root Tests Passed ==="
 
-                    echo "=== Running Server Tests ==="
+                    echo "=== Run Server Tests ==="
                     if [ -f server/package.json ]; then
                         npm --prefix server test
                     fi
 
-                    echo "=== Running Client Tests ==="
+                    echo "=== Run Client Tests ==="
                     if [ -f client/package.json ]; then
                         npm --prefix client test
                     fi
@@ -153,6 +146,7 @@ pipeline {
                 docker {
                     image 'aquasec/trivy:0.74.0'
                     reuseNode true
+
                     args '''
                         --entrypoint=""
                         -e HOME=/tmp
@@ -167,12 +161,10 @@ pipeline {
 
                     mkdir -p .trivy-cache
 
-                    echo "======================================"
-                    echo "        TRIVY SECURITY SCAN"
-                    echo "======================================"
-
+                    echo "=== Trivy Version ==="
                     trivy --version
 
+                    echo "=== Scanning for HIGH and CRITICAL Vulnerabilities ==="
                     trivy fs \
                         --cache-dir .trivy-cache \
                         --scanners vuln \
@@ -256,12 +248,13 @@ pipeline {
                 sh '''
                     set -eu
 
-                    echo "======================================"
-                    echo "       CREATING APPLICATION PACKAGE"
-                    echo "======================================"
-
+                    echo "=== Installing ZIP Utilities ==="
                     apk add --no-cache zip unzip
 
+                    echo "=== Building Client ==="
+                    npm run build
+
+                    echo "=== Creating Application Package ==="
                     rm -f latest-app.zip
 
                     zip -r latest-app.zip . \
@@ -278,11 +271,11 @@ pipeline {
                         -x "latest-app.zip" \
                         -x "trivy-results.sarif"
 
-                    echo "=== Application Package Created ==="
+                    echo "=== Verify Application ZIP ==="
+                    unzip -t latest-app.zip
                     ls -lh latest-app.zip
 
-                    echo "=== Verify ZIP ==="
-                    unzip -t latest-app.zip
+                    echo "=== Package Created Successfully ==="
                 '''
             }
         }
@@ -325,8 +318,15 @@ pipeline {
                             "/var/jenkins_home/userContent/applications/${appName}/${buildId}/latest-app.zip"
                     """
 
-                    def jenkinsBaseUrl = env.BUILD_URL
-                        .substring(0, env.BUILD_URL.indexOf('/job/'))
+                    def buildUrl = env.BUILD_URL
+                    def marker = buildUrl.indexOf('/job/')
+
+                    if (marker < 0) {
+                        error("Tidak dapat menentukan URL dasar Jenkins dari BUILD_URL.")
+                    }
+
+                    def jenkinsBaseUrl = buildUrl
+                        .substring(0, marker)
                         .replace('localhost', 'host.docker.internal')
 
                     env.ARTIFACT_URL =
@@ -360,6 +360,11 @@ pipeline {
                         script: '''
                             set -eu
 
+                            : "${URL_REDEPLOY:?URL_REDEPLOY belum dikonfigurasi}"
+                            : "${DEPLOY_TOKEN:?DEPLOY_TOKEN belum dikonfigurasi}"
+                            : "${WEBSITE_ID:?WEBSITE_ID belum dikonfigurasi}"
+                            : "${ARTIFACT_URL:?ARTIFACT_URL belum tersedia}"
+
                             curl -sS --fail-with-body \
                                 -X POST "$URL_REDEPLOY" \
                                 -H "Content-Type: application/json" \
@@ -376,7 +381,7 @@ pipeline {
                     echo "Redeploy Response:"
                     echo redeployResponse
 
-                    // Poll deployment status.
+                    // Poll deployment progress.
                     def maxAttempts = 120
                     def attempt = 0
                     def deploymentStatus = 'IN_PROGRESS'
@@ -386,7 +391,7 @@ pipeline {
 
                         if (attempt > maxAttempts) {
                             error(
-                                "Deployment timeout after ${maxAttempts} attempts."
+                                "Deployment timeout setelah ${maxAttempts} percobaan."
                             )
                         }
 
@@ -433,7 +438,7 @@ pipeline {
 
                         if (deploymentStatus == 'FAIL') {
                             def deploymentLog =
-                                json?.data?.log ?: 'Deployment failed tanpa log.'
+                                json?.data?.log ?: 'Deployment gagal tanpa log.'
 
                             echo "========== DEPLOYMENT LOG =========="
                             echo deploymentLog
