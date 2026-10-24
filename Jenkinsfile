@@ -240,7 +240,10 @@ pipeline {
         withSonarQubeEnv('SonarQube') {
           sh '''
             set -eu
-            sonar-scanner
+            test -f sonar-project.properties
+            echo "=== SonarQube project configuration ==="
+            grep '^sonar.projectKey=' sonar-project.properties
+            sonar-scanner -Dsonar.projectKey=ifs24018-pabwe2026-p1
           '''
         }
       }
