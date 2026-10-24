@@ -240,10 +240,13 @@ pipeline {
         withSonarQubeEnv('SonarQube') {
           sh '''
             set -eu
-            test -f sonar-project.properties
-            echo "=== SonarQube project configuration ==="
-            grep '^sonar.projectKey=' sonar-project.properties
-            sonar-scanner -Dsonar.projectKey=ifs24018-pabwe2026-p1
+            echo "=== SonarQube project configuration (inline) ==="
+            sonar-scanner \
+              -Dsonar.projectKey=ifs24018-pabwe2026-p1 \
+              -Dsonar.projectName='Study Planner - PABWE Project 1' \
+              -Dsonar.sourceEncoding=UTF-8 \
+              -Dsonar.sources=client/src,server/src \
+              -Dsonar.exclusions='**/node_modules/**,**/dist/**,**/coverage/**,**/reports/**,**/*.test.js,**/*.test.jsx,**/*.spec.js,**/*.spec.jsx,**/test/**,**/tests/**'
           '''
         }
       }
