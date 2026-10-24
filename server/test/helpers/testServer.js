@@ -1,5 +1,6 @@
 import { openDatabase } from '../../src/db/connection.js';
 
+
 const silentLogger = { error() {}, log() {} };
 
 /** Menjalankan aplikasi pada port acak dengan SQLite in-memory. APP_MODULE memungkinkan menguji implementasi lain (draf awal AI). */

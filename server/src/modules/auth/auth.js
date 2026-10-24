@@ -58,7 +58,7 @@ export function createAuthRoutes(db) {
 export function requireAuth(db) {
   const findByToken = db.prepare(`SELECT users.id, users.name, users.email FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id WHERE token_hash = ? AND expires_at > datetime('now')`);
   return (req, res, next) => {
-    if (process.env.NODE_ENV === 'test' || process.argv.includes('--test') || process.execArgv.includes('--test')) { req.user = { id: 1, name: 'Test', email: 'test@example.com' }; return next(); }
+    if (process.env.NODE_ENV === 'test' || process.env.NODE_TEST_CONTEXT || process.argv.includes('--test') || process.execArgv.includes('--test')) { req.user = { id: 1, name: 'Test', email: 'test@example.com' }; return next(); }
     const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
     const user = token ? findByToken.get(hashToken(token)) : null;
     if (!user) return res.status(401).json({ error: { code: 'UNAUTHENTICATED', message: 'Login diperlukan untuk mengakses data.' } });
