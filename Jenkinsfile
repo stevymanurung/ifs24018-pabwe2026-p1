@@ -194,8 +194,6 @@ pipeline {
           set -eu
           mkdir -p .trivy-cache
           trivy --version
-          # Fail on HIGH/CRITICAL vulnerabilities only when Trivy knows a fix.
-          # Unfixed findings remain visible in the report but do not block CI by themselves.
           trivy fs \
             --cache-dir .trivy-cache \
             --scanners vuln \
@@ -298,15 +296,20 @@ pipeline {
             .replaceAll('-+', '-')
             .replaceAll('^-|-$', '')
           def buildId = env.BUILD_NUMBER
+
           sh """
             set -eu
+            test -s latest-app.zip
             docker exec cicd-jenkins mkdir -p "/var/jenkins_home/userContent/applications/${appName}/${buildId}"
             docker cp latest-app.zip "cicd-jenkins:/var/jenkins_home/userContent/applications/${appName}/${buildId}/latest-app.zip"
-            docker exec cicd-jenkins ls -lh "/var/jenkins_home/userContent/applications/${appName}/${buildId}/latest-app.zip"
+            docker exec cicd-jenkins test -s "/var/jenkins_home/userContent/applications/${appName}/${buildId}/latest-app.zip"
           """
-          def marker = env.BUILD_URL.indexOf('/job/')
-          if (marker < 0) error('BUILD_URL tidak memiliki segmen /job/.')
-          def jenkinsBaseUrl = env.BUILD_URL.substring(0, marker).replace('localhost', 'host.docker.internal')
+
+          // Use Jenkins' configured public root URL, not the build URL.
+          def jenkinsBaseUrl = env.JENKINS_URL?.trim()?.replaceAll('/+$', '')
+          if (!jenkinsBaseUrl) {
+            error('JENKINS_URL belum dikonfigurasi. Atur Jenkins URL di Manage Jenkins > System.')
+          }
           env.ARTIFACT_URL = "${jenkinsBaseUrl}/userContent/applications/${appName}/${buildId}/latest-app.zip"
           echo "Artifact URL: ${env.ARTIFACT_URL}"
         }
@@ -323,35 +326,64 @@ pipeline {
       }
       steps {
         script {
-          def redeployResponse = sh(
+          def responseFile = 'redeploy-response.json'
+          def httpCode = sh(
             script: '''
               set -eu
               : "${URL_REDEPLOY:?URL_REDEPLOY belum dikonfigurasi}"
               : "${DEPLOY_TOKEN:?DEPLOY_TOKEN belum dikonfigurasi}"
               : "${WEBSITE_ID:?WEBSITE_ID belum dikonfigurasi}"
               : "${ARTIFACT_URL:?ARTIFACT_URL belum tersedia}"
-              curl -sS --fail-with-body -X POST "$URL_REDEPLOY" \\
+
+              curl -sS -X POST "$URL_REDEPLOY" \\
                 -H 'Content-Type: application/json' \\
-                -d "{\\"token_access\\":\\"$DEPLOY_TOKEN\\",\\"website_id\\":\\"$WEBSITE_ID\\",\\"source_url\\":\\"$ARTIFACT_URL\\",\\"source_type\\":\\"jenkins\\"}"
+                --data "{\"token_access\":\"$DEPLOY_TOKEN\",\"website_id\":\"$WEBSITE_ID\",\"source_url\":\"$ARTIFACT_URL\",\"source_type\":\"jenkins\"}" \\
+                -o redeploy-response.json \\
+                -w '%{http_code}'
             ''',
             returnStdout: true
           ).trim()
-          echo "Redeploy response: ${redeployResponse}"
+
+          def responseBody = readFile(responseFile)
+          echo "Redeploy HTTP status: ${httpCode}"
+          echo "Redeploy response: ${responseBody.take(4000)}"
+          archiveArtifacts artifacts: responseFile, allowEmptyArchive: true
+
+          if (!(httpCode in ['200', '201', '202'])) {
+            error("Permintaan redeploy gagal dengan HTTP ${httpCode}. Lihat Redeploy response di atas.")
+          }
+
+          def redeployJson
+          try {
+            redeployJson = readJSON text: responseBody
+          } catch (Exception parseError) {
+            error('API redeploy merespons sukses HTTP, tetapi isi respons bukan JSON yang valid.')
+          }
+          echo "Redeploy request accepted: ${redeployJson}"
 
           def maxAttempts = 120
           def status = 'IN_PROGRESS'
           for (int attempt = 1; attempt <= maxAttempts && status == 'IN_PROGRESS'; attempt++) {
             sleep time: 5, unit: 'SECONDS'
-            def response = sh(
+            def progressFile = 'deploy-progress.json'
+            def progressHttpCode = sh(
               script: '''
                 set -eu
-                curl -sS --fail-with-body -X POST "$URL_PROGRESS" \\
+                curl -sS -X POST "$URL_PROGRESS" \\
                   -H 'Content-Type: application/json' \\
-                  -d "{\\"token_access\\":\\"$DEPLOY_TOKEN\\",\\"website_id\\":\\"$WEBSITE_ID\\"}"
+                  --data "{\"token_access\":\"$DEPLOY_TOKEN\",\"website_id\":\"$WEBSITE_ID\"}" \\
+                  -o deploy-progress.json \\
+                  -w '%{http_code}'
               ''',
               returnStdout: true
             ).trim()
-            def json = readJSON text: response
+            def progressBody = readFile(progressFile)
+            if (!(progressHttpCode in ['200', '201', '202'])) {
+              echo "Progress HTTP status: ${progressHttpCode}"
+              echo "Progress response: ${progressBody.take(3000)}"
+              error("Gagal memeriksa progres deployment: HTTP ${progressHttpCode}.")
+            }
+            def json = readJSON text: progressBody
             status = json?.data?.status?.toString()?.toUpperCase()
             if (!status) error('Response progress tidak memiliki data.status.')
             echo "Deployment status (${attempt}/${maxAttempts}): ${status}"
@@ -397,7 +429,7 @@ pipeline {
   post {
     always {
       archiveArtifacts allowEmptyArchive: true,
-        artifacts: 'trivy-results.sarif,server/reports/**,client/reports/**,server/smoke.log'
+        artifacts: 'trivy-results.sarif,server/reports/**,client/reports/**,server/smoke.log,redeploy-response.json,deploy-progress.json'
     }
     success {
       echo "PIPELINE SUCCESS — ${currentBuild.currentResult}"
