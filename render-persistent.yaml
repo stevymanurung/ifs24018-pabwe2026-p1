@@ -1,0 +1,25 @@
+# OPSI PERSISTEN (Render plan berbayar + Persistent Disk).
+# Untuk menggunakan konfigurasi ini, salin isinya ke render.yaml sebelum membuat Blueprint.
+services:
+  - type: web
+    name: ifs24018-study-planner
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: study-planner-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DB_FILE
+        value: /data/planner.db
+      - key: CLIENT_DIST
+        value: /app/client/dist
+      - key: SEED_DEMO
+        value: "false"

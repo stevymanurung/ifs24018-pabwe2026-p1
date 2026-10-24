@@ -97,3 +97,8 @@ Daftar endpoint: [docs/api.md](docs/api.md). Deployment, Jenkins, dan URL online
 Pada kunjungan pertama, pilih **Daftar sekarang** untuk membuat akun. Gunakan email yang valid dan password minimal 8 karakter. Setelah berhasil daftar, aplikasi otomatis login. Akun berikutnya menggunakan halaman Login. Setiap akun memiliki jadwal, tugas, alarm, dan pengaturan sendiri.
 
 API autentikasi tersedia di `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, dan `/api/auth/logout`. Password disimpan sebagai hash `scrypt`, sedangkan token sesi disimpan sebagai hash di SQLite.
+
+
+## Catatan deployment Render gratis
+
+ZIP ini memakai `render.yaml` untuk mode demo gratis dengan `DB_FILE=/tmp/planner.db`. API Express menyimpan data nyata ke SQLite selama instance aktif, bukan data dummy; tetapi penyimpanan `/tmp` tidak persisten dan data dapat hilang saat restart/redeploy. Jika syarat proyek mewajibkan data tetap ada setelah restart, gunakan `render-persistent.yaml` sebagai `render.yaml` dan layanan dengan Persistent Disk. Lihat `docs/deployment.md`.

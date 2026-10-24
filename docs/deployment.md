@@ -35,16 +35,21 @@ Data SQLite disimpan pada volume `planner-data` (`/data/planner.db`) sehingga be
 5. Jalankan *Build Now*. Tahapan: Install, Lint, Test (laporan JUnit), Build, Deploy (`docker compose up`), Smoke Test.
 6. Tangkapan layar yang dikumpulkan: tampilan *Stage View* yang hijau dan halaman *Test Result*.
 
-## 4. URL online
+## 4. Deploy gratis ke Render (mode demo)
 
-Contoh memakai Render (Web Service dari Dockerfile):
+1. Push seluruh folder proyek ke repository GitHub. Pastikan `render.yaml`, `Dockerfile`, `client/`, dan `server/` ada di root repository.
+2. Buka https://dashboard.render.com/ lalu pilih **New + -> Blueprint**.
+3. Pilih repository tersebut. Render membaca `render.yaml` dan menyiapkan layanan Docker dengan paket Free.
+4. Klik deploy dan tunggu status **Live**. Buka URL `onrender.com` yang diberikan.
+5. Uji `https://<nama-layanan>.onrender.com/api/health`, lalu buka URL utama dan uji daftar/login/tugas.
 
-1. Hubungkan repositori GitHub, pilih **Docker** sebagai environment.
-2. Tambahkan *Persistent Disk* ber-mount `/data` (tanpa disk, SQLite hilang setiap redeploy).
-3. Environment variable: `SEED_DEMO=true` (opsional).
-4. Setelah deploy, uji `https://<nama-layanan>.onrender.com/api/health`.
+### Batasan mode gratis (wajib dibaca)
 
-Platform lain yang mendukung Docker dan volume (Railway, Fly.io) memakai langkah serupa.
+`render.yaml` untuk mode gratis menyetel `DB_FILE=/tmp/planner.db`. Express + SQLite dapat menyimpan akun/tugas saat instance berjalan, tetapi `/tmp` bukan penyimpanan persisten. Data bisa hilang saat restart, redeploy, atau instance diganti; layanan Free juga dapat tidur saat tidak aktif. Jangan gunakan mode ini untuk menjanjikan data permanen.
+
+### Jika data harus tetap ada setelah restart
+
+Render memerlukan Persistent Disk yang tersedia pada paket berbayar. Untuk pilihan ini, salin isi `render-persistent.yaml` ke `render.yaml` sebelum membuat Blueprint, lalu pastikan disk terpasang pada `/data` dan `DB_FILE=/data/planner.db`. Jangan mengganti SQLite dengan database lain tanpa persetujuan dosen.
 
 ## 5. Daftar artefak
 

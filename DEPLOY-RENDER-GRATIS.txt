@@ -1,0 +1,9 @@
+PANDUAN RINGKAS DEPLOY RENDER GRATIS
+
+1. Upload/push SELURUH isi folder ini ke GitHub. Pastikan render.yaml berada di root repository.
+2. Render Dashboard -> New + -> Blueprint.
+3. Hubungkan repository dan deploy Blueprint.
+4. Tunggu status Live. Buka URL .onrender.com yang dibuat Render.
+5. Tes /api/health, lalu daftar akun dan buat tugas.
+
+PENTING: mode gratis memakai SQLite di /tmp/planner.db. Data tersimpan melalui API ke SQLite saat instance hidup, tetapi dapat hilang saat restart/redeploy. Untuk data persisten di Render, gunakan isi render-persistent.yaml sebagai render.yaml dan Persistent Disk (berbayar).
